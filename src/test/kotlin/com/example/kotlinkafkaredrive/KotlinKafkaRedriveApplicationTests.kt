@@ -43,8 +43,12 @@ class KotlinKafkaRedriveApplicationTests(
     val topicName: String
 ) {
     val dltTopicName = "$topicName-dlt"
+    data class UnverifiedEvent(
+        val productCode: String,
+        val changeAmount: BigDecimal
+    )
 
-        @BeforeEach
+    @BeforeEach
     fun checkKafkaContainer() {
         assert(kafkaContainer.isRunning)
         val props = kafkaProperties.buildConsumerProperties()
@@ -71,11 +75,7 @@ class KotlinKafkaRedriveApplicationTests(
 
     @Test
     fun transferToDLT_Success() {
-        data class InvalidEvent(
-            val productCode: String,
-            val changeAmount: BigDecimal
-        )
-        val event = InvalidEvent(
+        val event = UnverifiedEvent(
             "P999",
             BigDecimal("14.50")
         )
@@ -93,4 +93,41 @@ class KotlinKafkaRedriveApplicationTests(
         assertThat(dltConsumerRecord?.value()).isNotNull
     }
 
+    @Test
+    fun simpleRedrive_Success() {
+        val event = UnverifiedEvent(
+            "P999",
+            BigDecimal("14.50")
+        )
+        val future = producer.send(topicName, event)
+        future.get(5, TimeUnit.SECONDS)
+        assert(future.isDone)
+
+        kafkaTemplate.receive(topicName, 0, 0, Duration.ofSeconds(5))
+            .also {
+                assertThat(it?.value()).isNotNull
+                assertThrows<Exception> {
+                    objectMapper.readValue<ProductPriceChangedEvent>(it!!.value())
+                }
+            }
+
+        kafkaTemplate.receive(topicName, 0, 1, Duration.ofSeconds(5))
+            .also {
+                assertThat(it?.value()).isNull()
+            }
+
+        kafkaTemplate.receive(dltTopicName, 0, 0, Duration.ofSeconds(5))
+            .also {
+                assertThat(it?.value()).isNotNull
+            }
+
+        // Need to implement
+//        redrive()
+
+        kafkaTemplate.receive(topicName, 0, 1, Duration.ofSeconds(5))
+            .also {
+                assertThat(it?.value()).isNotNull
+                assertThat(it?.value()).isEqualTo(event)
+            }
+    }
 }
