@@ -65,7 +65,7 @@ class KotlinKafkaRedriveApplicationTests(
             ProductCode.P100,
             BigDecimal("14.50")
         )
-        val future = producer.send(topicName, event)
+        val future = producer.send(topicName, objectMapper.writeValueAsString(event))
         future.get(5, TimeUnit.SECONDS)
         assert(future.isDone)
 
@@ -81,7 +81,7 @@ class KotlinKafkaRedriveApplicationTests(
             "P999",
             BigDecimal("14.50")
         )
-        val future = producer.send(topicName, event)
+        val future = producer.send(topicName, objectMapper.writeValueAsString(event))
         future.get(5, TimeUnit.SECONDS)
         assert(future.isDone)
 
@@ -101,7 +101,7 @@ class KotlinKafkaRedriveApplicationTests(
             "P999",
             BigDecimal("14.50")
         )
-        val future = producer.send(topicName, event)
+        val future = producer.send(topicName, objectMapper.writeValueAsString(event))
         future.get(5, TimeUnit.SECONDS)
         assert(future.isDone)
 
@@ -128,7 +128,7 @@ class KotlinKafkaRedriveApplicationTests(
         kafkaTemplate.receive(topicName, 0, 1, Duration.ofSeconds(5))
             .also {
                 assertThat(it?.value()).isNotNull
-                assertThat(it?.value()).isEqualTo(event)
+                assertThat(objectMapper.readValue<UnverifiedEvent>(it!!.value())).isEqualTo(event)
             }
     }
 }
