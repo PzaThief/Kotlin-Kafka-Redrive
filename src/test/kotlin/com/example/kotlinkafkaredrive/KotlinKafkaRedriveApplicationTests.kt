@@ -39,6 +39,8 @@ class KotlinKafkaRedriveApplicationTests(
     val kafkaTemplate: KafkaTemplate<String, String>,
     @Autowired
     val kafkaProperties: KafkaProperties,
+    @Autowired
+    val redriver: Redriver,
     @Value("\${test.topic}")
     val topicName: String
 ) {
@@ -121,8 +123,7 @@ class KotlinKafkaRedriveApplicationTests(
                 assertThat(it?.value()).isNotNull
             }
 
-        // Need to implement
-//        redrive()
+        redriver.redrive(listOf(kafkaContainer.bootstrapServers), dltTopicName, topicName)
 
         kafkaTemplate.receive(topicName, 0, 1, Duration.ofSeconds(5))
             .also {
